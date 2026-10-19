@@ -1,0 +1,112 @@
+
+===== results session 2026-10-15T20:25:01+00:00 =====
+
+--- HANDOFF: serving_probe ---
+A. context: Milestone 1 completion: measure a real OpenAI-compatible serving endpoint (llama-server recommended) for Qwen3-30B-A3B. The cognitive controller treats the endpoint as a text-in/text-out oracle; these numbers calibrate that assumption (runtime-decision ADR, section 15).
+B. purpose: Measure per-request latency, token throughput (tok/s), reported model id, and VRAM usage before/after, so the A16/quant decision and budget constants in configs/prototype.yaml can be revised with measured data instead of guesses.
+C. script:  scripts/bench_serving.py
+D. data:    Fixed prompts matching configs/prototype.yaml eval tasks; repeated 3 times each for stable timing.
+E. action:  If throughput is stable and the model id matches the served checkpoint, point configs/prototype.yaml runtime.backend at openai_compatible and re-run scripts/run_eval.py against the live server.
+--- RESULTS 2026-10-15T20:25:06+00:00 ---
+{
+  "endpoint": "http://127.0.0.1:7232/v1",
+  "server_reachable": true,
+  "served_models": [
+    "Qwen3.8 Flash Next Uncensored"
+  ],
+  "expected_model": null,
+  "benchmark": {
+    "samples": [
+      {
+        "goal": "Compute 12 * 8 and report the result.",
+        "rep": 0,
+        "ok": true,
+        "seconds": 1.3518,
+        "completion_tokens": 26,
+        "prompt_tokens": 64,
+        "answer_excerpt": "96"
+      },
+      {
+        "goal": "Compute 12 * 8 and report the result.",
+        "rep": 1,
+        "ok": true,
+        "seconds": 0.4326,
+        "completion_tokens": 26,
+        "prompt_tokens": 64,
+        "answer_excerpt": "96"
+      },
+      {
+        "goal": "Compute 12 * 8 and report the result.",
+        "rep": 2,
+        "ok": true,
+        "seconds": 0.3517,
+        "completion_tokens": 26,
+        "prompt_tokens": 64,
+        "answer_excerpt": "96"
+      },
+      {
+        "goal": "Compute 41 + 1 and report the result.",
+        "rep": 0,
+        "ok": true,
+        "seconds": 0.6728,
+        "completion_tokens": 26,
+        "prompt_tokens": 64,
+        "answer_excerpt": "42"
+      },
+      {
+        "goal": "Compute 41 + 1 and report the result.",
+        "rep": 1,
+        "ok": true,
+        "seconds": 0.223,
+        "completion_tokens": 25,
+        "prompt_tokens": 64,
+        "answer_excerpt": "42"
+      },
+      {
+        "goal": "Compute 41 + 1 and report the result.",
+        "rep": 2,
+        "ok": true,
+        "seconds": 0.2516,
+        "completion_tokens": 26,
+        "prompt_tokens": 64,
+        "answer_excerpt": "42"
+      },
+      {
+        "goal": "Read data/eval_corpus/notes.txt and report the code word it contains.",
+        "rep": 0,
+        "ok": true,
+        "seconds": 0.9777,
+        "completion_tokens": 64,
+        "prompt_tokens": 68,
+        "answer_excerpt": "None"
+      },
+      {
+        "goal": "Read data/eval_corpus/notes.txt and report the code word it contains.",
+        "rep": 1,
+        "ok": true,
+        "seconds": 0.4482,
+        "completion_tokens": 64,
+        "prompt_tokens": 68,
+        "answer_excerpt": "None"
+      },
+      {
+        "goal": "Read data/eval_corpus/notes.txt and report the code word it contains.",
+        "rep": 2,
+        "ok": true,
+        "seconds": 0.3376,
+        "completion_tokens": 64,
+        "prompt_tokens": 68,
+        "answer_excerpt": "None"
+      }
+    ],
+    "summary": {
+      "requests_ok": 9,
+      "requests_failed": 0,
+      "total_seconds": 5.047,
+      "total_completion_tokens": 347,
+      "tokens_per_second": 68.8
+    }
+  }
+}
+
+===== end session 2026-10-15T20:25:06+00:00 =====

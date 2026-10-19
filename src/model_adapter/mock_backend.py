@@ -1,0 +1,85 @@
+"""Deterministic mock backend (acceptance criterion 7).
+
+Emulates a model that emits the structured decision JSON required by
+the cognitive controller. Behaviour is scripted from the config's
+``eval_tasks`` so the whole control loop runs without GPU access and
+produces identical results on every run.
+
+Behaviour:
+- baseline mode (no tool_history in the prompt payload): answer one-shot
+  with the task's ``baseline_answer``;
+- recurrent mode, first step (empty tool_history): request the task's
+  configured tool via a CALL_TOOL decision;
+- recurrent mode, later steps (tool history present): emit EMIT_FINAL
+  incorporating the latest tool summary (the observed value).
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from typing import Any
+
+from .base import InferenceBackend, BackendCapabilities
+
+
+def _normalize(text: str) -> str:
+    return re.sub(r"\s+", " ", str(text)).strip().lower().rstrip(".")
+
+
+class MockBackend(InferenceBackend):
+    name = "mock"
+
+    def __init__(self, config: dict[str, Any]):
+        self.config = config
+        self.mode = config.get("mode", "recurrent")
+        self.eval_tasks = config.get("eval_tasks", [])
+        self._call_count = 0
+
+    def capabilities(self) -> BackendCapabilities:
+        return BackendCapabilities(
+            supports_chat=True,
+            supports_structured_json_output=True,
+            # The mock does not expose activations, router logits, or a
+            # serving API, so those flags stay False.
+            supports_hidden_states=False,
+            supports_router_logits=False,
+            supports_openai_compatible_serving=False,
+            notes="scripted mock; deterministic, CPU-only",
+        )
+
+    def generate(self, messages: list[dict[str, Any]]) -> str:
+        payload = json.loads(messages[-1]["content"])
+        goal = payload.get("goal", "")
+        task = self._match(goal)
+        history = payload.get("tool_history")
+        self._call_count += 1
+
+        if task is None:
+            return json.dumps({"action": "EMIT_FINAL",
+                               "answer": _normalize(goal),
+                               "rationale": "no matching eval task"})
+
+        if history:
+            # Later recurrent step: incorporate the last tool summary.
+            return json.dumps({"action": "EMIT_FINAL",
+                               "answer": str(history[-1].get("summary", "")),
+                               "rationale": "incorporate tool observation"})
+
+        if self.mode == "recurrent":
+            return json.dumps({"action": "CALL_TOOL",
+                               "tool": task.get("tool", "calculator"),
+                               "arguments": dict(task.get("tool_args", {})),
+                               "rationale": "first step: consult tool"})
+
+        # Baseline arm: one-shot answer from parametric knowledge.
+        return json.dumps({"action": "EMIT_FINAL",
+                           "answer": str(task.get("baseline_answer", "")),
+                           "rationale": "one-shot answer, no tools"})
+
+    def _match(self, goal: str) -> dict | None:
+        norm = _normalize(goal)
+        for task in self.eval_tasks:
+            if _normalize(task.get("goal", "")) == norm:
+                return task
+        return None

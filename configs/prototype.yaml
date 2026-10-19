@@ -1,0 +1,47 @@
+# OpenSI Cognitive Recurrence prototype configuration
+# Runtime decision context: docs/research/runtime-decision.md
+
+backend: mock            # mock | openai_compatible | transformers
+
+# Live serving endpoint for measurement probes.
+# LM Studio serves the current model on this host at port 1234.
+openai_base_url: http://127.0.0.1:1234/v1
+
+policy:
+  sandbox_roots:
+    - data/eval_corpus
+  tool_tiers:
+    calculator: auto
+    clock: auto
+    file_read: auto
+  tool_timeout_s: 10
+
+budgets:
+  max_steps: 8
+  max_tool_calls: 4
+  max_seconds: 60
+  max_internal_streak: 3
+  max_repairs: 2
+
+# Milestone 4 comparison tasks.
+#   baseline_answer: what a one-shot model produces without tool access
+#   expected:        ground truth obtainable via a tool observation
+eval_tasks:
+  - goal: "Compute 12 * 8 and report the result."
+    baseline_answer: "96"
+    expected: "96"
+    tool: calculator
+    tool_args:
+      expression: "12*8"
+  - goal: "Compute 41 + 1 and report the result."
+    baseline_answer: "42"
+    expected: "42"
+    tool: calculator
+    tool_args:
+      expression: "41+1"
+  - goal: "Read data/eval_corpus/notes.txt and report the code word it contains."
+    baseline_answer: "notes"
+    expected: "ORION"
+    tool: file_read
+    tool_args:
+      path: data/eval_corpus/notes.txt
