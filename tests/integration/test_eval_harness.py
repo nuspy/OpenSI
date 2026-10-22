@@ -67,3 +67,16 @@ def test_mock_backend_is_deterministic():
     payload = json.dumps({"goal": goal})
     msg = [{"role": "system", "content": "sys"}, {"role": "user", "content": payload}]
     assert a.generate(msg) == b.generate(msg)
+
+
+def test_multi_arm_evaluation_matrix():
+    from scripts.run_eval import evaluate
+
+    report = evaluate()
+    summary = report["summary"]
+
+    assert summary["baseline"]["correct"] == 2
+    assert summary["reactive"]["correct"] == 5
+    assert summary["recurrent"]["correct"] == 7
+    assert summary["recurrent"]["accuracy_pct"] == 100.0
+    assert summary["recurrent"]["avg_steps"] > summary["baseline"]["avg_steps"]

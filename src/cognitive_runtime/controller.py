@@ -310,7 +310,11 @@ class CognitiveController:
             payload["success_criteria"] = state.success_criteria
         if self.mode != "baseline":
             payload["tool_history"] = [
-                {"tool": t.get("tool"), "summary": t.get("summary")}
+                {
+                    "tool": t.get("tool"),
+                    "status": t.get("status", "success"),
+                    "summary": t.get("summary"),
+                }
                 for t in state.tool_history[-4:]
             ]
         return [

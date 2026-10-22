@@ -1,0 +1,230 @@
+{
+  "timestamp": "2026-10-22T02:47:07Z",
+  "backend": "mock",
+  "total_tasks": 7,
+  "elapsed_seconds": 0.089,
+  "summary": {
+    "baseline": {
+      "correct": 2,
+      "total": 7,
+      "accuracy_pct": 28.6,
+      "avg_steps": 1.0,
+      "avg_tool_calls": 0.0,
+      "total_tool_calls": 0
+    },
+    "reactive": {
+      "correct": 5,
+      "total": 7,
+      "accuracy_pct": 71.4,
+      "avg_steps": 1.0,
+      "avg_tool_calls": 1.0,
+      "total_tool_calls": 7
+    },
+    "recurrent": {
+      "correct": 7,
+      "total": 7,
+      "accuracy_pct": 100.0,
+      "avg_steps": 1.29,
+      "avg_tool_calls": 1.29,
+      "total_tool_calls": 9
+    }
+  },
+  "tasks": [
+    {
+      "task_id": 1,
+      "goal": "Compute 12 * 8 and report the result.",
+      "expected": "96",
+      "arms": {
+        "baseline": {
+          "final_text": "96",
+          "stop_reason": "final",
+          "steps": 1,
+          "tool_calls": 0,
+          "correct": true
+        },
+        "reactive": {
+          "final_text": "96",
+          "stop_reason": "final",
+          "steps": 1,
+          "tool_calls": 1,
+          "correct": true
+        },
+        "recurrent": {
+          "final_text": "96",
+          "stop_reason": "final",
+          "steps": 1,
+          "tool_calls": 1,
+          "correct": true
+        }
+      }
+    },
+    {
+      "task_id": 2,
+      "goal": "Compute 41 + 1 and report the result.",
+      "expected": "42",
+      "arms": {
+        "baseline": {
+          "final_text": "42",
+          "stop_reason": "final",
+          "steps": 1,
+          "tool_calls": 0,
+          "correct": true
+        },
+        "reactive": {
+          "final_text": "42",
+          "stop_reason": "final",
+          "steps": 1,
+          "tool_calls": 1,
+          "correct": true
+        },
+        "recurrent": {
+          "final_text": "42",
+          "stop_reason": "final",
+          "steps": 1,
+          "tool_calls": 1,
+          "correct": true
+        }
+      }
+    },
+    {
+      "task_id": 3,
+      "goal": "Read data/eval_corpus/notes.txt and report the code word it contains.",
+      "expected": "ORION",
+      "arms": {
+        "baseline": {
+          "final_text": "notes",
+          "stop_reason": "final",
+          "steps": 1,
+          "tool_calls": 0,
+          "correct": false
+        },
+        "reactive": {
+          "final_text": "ORION",
+          "stop_reason": "final",
+          "steps": 1,
+          "tool_calls": 1,
+          "correct": true
+        },
+        "recurrent": {
+          "final_text": "ORION",
+          "stop_reason": "final",
+          "steps": 1,
+          "tool_calls": 1,
+          "correct": true
+        }
+      }
+    },
+    {
+      "task_id": 4,
+      "goal": "Read data/eval_corpus/secret_project.txt and report the project codename.",
+      "expected": "PROJECT_PHOENIX",
+      "arms": {
+        "baseline": {
+          "final_text": "UNKNOWN_PROJECT",
+          "stop_reason": "final",
+          "steps": 1,
+          "tool_calls": 0,
+          "correct": false
+        },
+        "reactive": {
+          "final_text": "PROJECT_PHOENIX",
+          "stop_reason": "final",
+          "steps": 1,
+          "tool_calls": 1,
+          "correct": true
+        },
+        "recurrent": {
+          "final_text": "PROJECT_PHOENIX",
+          "stop_reason": "final",
+          "steps": 1,
+          "tool_calls": 1,
+          "correct": true
+        }
+      }
+    },
+    {
+      "task_id": 5,
+      "goal": "Read data/eval_corpus/measurements.json and report the sensor_a value.",
+      "expected": "124.5",
+      "arms": {
+        "baseline": {
+          "final_text": "0.0",
+          "stop_reason": "final",
+          "steps": 1,
+          "tool_calls": 0,
+          "correct": false
+        },
+        "reactive": {
+          "final_text": "124.5",
+          "stop_reason": "final",
+          "steps": 1,
+          "tool_calls": 1,
+          "correct": true
+        },
+        "recurrent": {
+          "final_text": "124.5",
+          "stop_reason": "final",
+          "steps": 1,
+          "tool_calls": 1,
+          "correct": true
+        }
+      }
+    },
+    {
+      "task_id": 6,
+      "goal": "Read the formula in data/eval_corpus/formula.txt and compute its numeric value.",
+      "expected": "350",
+      "arms": {
+        "baseline": {
+          "final_text": "unknown",
+          "stop_reason": "final",
+          "steps": 1,
+          "tool_calls": 0,
+          "correct": false
+        },
+        "reactive": {
+          "final_text": "25 * 14",
+          "stop_reason": "final",
+          "steps": 1,
+          "tool_calls": 1,
+          "correct": false
+        },
+        "recurrent": {
+          "final_text": "350",
+          "stop_reason": "final",
+          "steps": 2,
+          "tool_calls": 2,
+          "correct": true
+        }
+      }
+    },
+    {
+      "task_id": 7,
+      "goal": "Read primary config data/eval_corpus/config.txt or fallback data/eval_corpus/backup_config.txt and report PRIMARY_IP.",
+      "expected": "192.168.1.100",
+      "arms": {
+        "baseline": {
+          "final_text": "127.0.0.1",
+          "stop_reason": "final",
+          "steps": 1,
+          "tool_calls": 0,
+          "correct": false
+        },
+        "reactive": {
+          "final_text": "FileNotFoundError: [Errno 2] No such file or directory: 'data\\\\eval_corpus\\\\config.txt'",
+          "stop_reason": "final",
+          "steps": 1,
+          "tool_calls": 1,
+          "correct": false
+        },
+        "recurrent": {
+          "final_text": "192.168.1.100",
+          "stop_reason": "final",
+          "steps": 2,
+          "tool_calls": 2,
+          "correct": true
+        }
+      }
+    }
+  ]
+}

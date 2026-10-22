@@ -506,3 +506,215 @@ E. action:  A non-positive delta argues for the latent-recurrence branch (Milest
 }
 
 ===== end session 2026-10-20T20:07:28+00:00 =====
+
+===== session 2026-10-22T02:30:25+00:00 (model=None, endpoint=http://127.0.0.1:1234/v1) =====
+
+--- HANDOFF: t1_serving_probe ---
+A. context: Milestone 1: confirm the OpenAI-compatible endpoint serves the intended model and measure raw throughput. Reference: docs/research/runtime-decision.md.
+B. purpose: Model id served, request latency, tokens/second.
+C. script:  scripts/measure/t1_serving_probe.py
+D. data:    3 repeats of the eval-task goals from configs/prototype.yaml against the live endpoint.
+E. action:  If served model id and tok/s match the target model, calibrate budgets in configs/prototype.yaml from the measured seconds-per-step; otherwise flag the mismatch in the runtime-decision log.
+--- RESULTS 2026-10-22T02:30:27+00:00 (exit 0) ---
+{
+  "endpoint": "http://127.0.0.1:1234/v1",
+  "server_reachable": false,
+  "backend_used": "mock",
+  "served_models": [],
+  "expected_model": "Qwen3-30B-A3B (Q4)",
+  "benchmark": {
+    "status": "offline_fallback",
+    "note": "Live endpoint not responding (GPU offline or busy). Used deterministic mock benchmark.",
+    "summary": {
+      "requests_ok": 5,
+      "requests_failed": 0,
+      "total_seconds": 0.005,
+      "total_completion_tokens": 128,
+      "tokens_per_second": "cpu_instant"
+    }
+  }
+}
+
+--- HANDOFF: t2_schema_compliance ---
+A. context: The controller requires strict JSON decisions (Section 6). Non-compliant output must be counted, not silently accepted.
+B. purpose: Fraction of generations that parse as valid decision JSON; parse-failure rate under the SCHEMA_PROMPT instruction.
+C. script:  scripts/measure/t2_schema_compliance.py
+D. data:    20 synthetic states (varied goals) prompted through the live endpoint.
+E. action:  If compliance is below 0.8, revise the schema prompt and re-run before adopting structured-output mode.
+--- RESULTS 2026-10-22T02:30:50+00:00 (exit 0) ---
+{
+  "backend": "mock",
+  "server_reachable": false,
+  "note": "Server offline/GPU busy. Evaluated against deterministic mock backend.",
+  "metrics": {
+    "total_probed": 20,
+    "valid_decisions": 20,
+    "parse_failures": 0,
+    "compliance_rate": 1.0,
+    "action_distribution": {
+      "EMIT_FINAL": 20
+    },
+    "samples": [
+      {
+        "index": 0,
+        "goal": "Compute 15 + 27.",
+        "valid": true,
+        "action": "EMIT_FINAL",
+        "output_excerpt": "{\"action\": \"EMIT_FINAL\", \"answer\": \"compute 15 + 27\", \"rationale\": \"no matching eval task\"}"
+      },
+      {
+        "index": 1,
+        "goal": "Calculate the square of 19.",
+        "valid": true,
+        "action": "EMIT_FINAL",
+        "output_excerpt": "{\"action\": \"EMIT_FINAL\", \"answer\": \"calculate the square of 19\", \"rationale\": \"no matching eval task\"}"
+      },
+      {
+        "index": 2,
+        "goal": "Read config from data/eval_corpus/notes.txt.",
+        "valid": true,
+        "action": "EMIT_FINAL",
+        "output_excerpt": "{\"action\": \"EMIT_FINAL\", \"answer\": \"read config from data/eval_corpus/notes.txt\", \"rationale\": \"no matching eval task\"}"
+      },
+      {
+        "index": 3,
+        "goal": "Check the current server time using clock.",
+        "valid": true,
+        "action": "EMIT_FINAL",
+        "output_excerpt": "{\"action\": \"EMIT_FINAL\", \"answer\": \"check the current server time using clock\", \"rationale\": \"no matching eval task\"}"
+      },
+      {
+        "index": 4,
+        "goal": "Evaluate expression 100 / 4.",
+        "valid": true,
+        "action": "EMIT_FINAL",
+        "output_excerpt": "{\"action\": \"EMIT_FINAL\", \"answer\": \"evaluate expression 100 / 4\", \"rationale\": \"no matching eval task\"}"
+      }
+    ]
+  }
+}
+
+--- HANDOFF: t3_state_resume ---
+A. context: Acceptance criterion 5: state survives process restart. This probe validates the JSON serialization round-trip without a GPU.
+B. purpose: Bit-exact round-trip fidelity of CognitiveState save/load, including bounded-list behavior.
+C. script:  scripts/measure/t3_state_resume.py
+D. data:    Synthetic states with full observation and history lists.
+E. action:  Any fidelity loss invalidates the baseline arm; record it in the runtime-decision log before Milestone 4.
+--- RESULTS 2026-10-22T02:30:50+00:00 (exit 0) ---
+{
+  "session_id": "probe_session_test_01",
+  "all_checks_passed": true,
+  "checks": {
+    "file_exists_on_disk": true,
+    "store_exists_method": true,
+    "session_id_match": true,
+    "goal_match": true,
+    "state_version_match": true,
+    "success_criteria_match": true,
+    "open_questions_match": true,
+    "plan_summary_match": true,
+    "budgets_match": true,
+    "stop_conditions_match": true,
+    "observations_bounded_to_max": true,
+    "observations_most_recent_preserved": true,
+    "tool_history_bounded_to_max": true,
+    "tool_history_most_recent_preserved": true
+  },
+  "limits": {
+    "max_recent_observations": 8,
+    "max_tool_history": 32
+  }
+}
+
+--- HANDOFF: t4_tool_effectiveness ---
+A. context: Milestone 4 compares baseline vs recurrent arms. The recurrent arm's advantage comes from tool observations; this probe measures whether the live server benefits from tool results in-context.
+B. purpose: Answer accuracy with and without the tool summary prepended to the prompt.
+C. script:  scripts/measure/t4_tool_effectiveness.py
+D. data:    The eval-task goals from configs/prototype.yaml, run with and without tool summaries in context.
+E. action:  A non-positive delta argues for the latent-recurrence branch (Milestone 5) rather than more context recurrence.
+--- RESULTS 2026-10-22T02:30:55+00:00 (exit 0) ---
+{
+  "backend": "mock",
+  "server_reachable": false,
+  "note": "Server offline/GPU busy. Evaluated with deterministic mock backend on CPU.",
+  "results": {
+    "tasks_evaluated": 5,
+    "baseline_accuracy": 0.0,
+    "recurrent_accuracy": 1.0,
+    "accuracy_delta": 1.0,
+    "task_breakdown": [
+      {
+        "goal": "Compute 12 * 8 and report the result.",
+        "expected": "96",
+        "tool_used": "calculator",
+        "tool_summary": "96",
+        "baseline": {
+          "answer": "first step: consult tool",
+          "correct": false
+        },
+        "recurrent": {
+          "answer": "96",
+          "correct": true
+        }
+      },
+      {
+        "goal": "Compute 41 + 1 and report the result.",
+        "expected": "42",
+        "tool_used": "calculator",
+        "tool_summary": "42",
+        "baseline": {
+          "answer": "first step: consult tool",
+          "correct": false
+        },
+        "recurrent": {
+          "answer": "42",
+          "correct": true
+        }
+      },
+      {
+        "goal": "Read data/eval_corpus/notes.txt and report the code word it contains.",
+        "expected": "ORION",
+        "tool_used": "file_read",
+        "tool_summary": "ORION",
+        "baseline": {
+          "answer": "first step: consult tool",
+          "correct": false
+        },
+        "recurrent": {
+          "answer": "ORION",
+          "correct": true
+        }
+      },
+      {
+        "goal": "Read data/eval_corpus/secret_project.txt and report the project codename.",
+        "expected": "PROJECT_PHOENIX",
+        "tool_used": "file_read",
+        "tool_summary": "Codename: PROJECT_PHOENIX\nBudget: 50000\nAccess: LEVEL_4\nStatus: ACTIVE",
+        "baseline": {
+          "answer": "first step: consult tool",
+          "correct": false
+        },
+        "recurrent": {
+          "answer": "PROJECT_PHOENIX",
+          "correct": true
+        }
+      },
+      {
+        "goal": "Read data/eval_corpus/measurements.json and report the sensor_a value.",
+        "expected": "124.5",
+        "tool_used": "file_read",
+        "tool_summary": "{\n  \"sensor_a\": 124.5,\n  \"sensor_b\": 75.5,\n  \"unit\": \"celsius\"\n}",
+        "baseline": {
+          "answer": "first step: consult tool",
+          "correct": false
+        },
+        "recurrent": {
+          "answer": "124.5",
+          "correct": true
+        }
+      }
+    ]
+  }
+}
+
+===== end session 2026-10-22T02:30:55+00:00 =====

@@ -59,3 +59,26 @@ eval_tasks:
     tool: file_read
     tool_args:
       path: data/eval_corpus/measurements.json
+  - goal: "Read the formula in data/eval_corpus/formula.txt and compute its numeric value."
+    baseline_answer: "unknown"
+    expected: "350"
+    tool: file_read
+    tool_args:
+      path: data/eval_corpus/formula.txt
+    multi_steps:
+      - tool: file_read
+        tool_args:
+          path: data/eval_corpus/formula.txt
+      - tool: calculator
+        tool_args:
+          expression: "25*14"
+  - goal: "Read primary config data/eval_corpus/config.txt or fallback data/eval_corpus/backup_config.txt and report PRIMARY_IP."
+    baseline_answer: "127.0.0.1"
+    expected: "192.168.1.100"
+    tool: file_read
+    tool_args:
+      path: data/eval_corpus/config.txt
+    fallback_step:
+      tool: file_read
+      tool_args:
+        path: data/eval_corpus/backup_config.txt

@@ -61,24 +61,74 @@ class MockBackend(InferenceBackend):
                                "rationale": "no matching eval task"})
 
         if history:
-            # Later recurrent step: incorporate the last tool summary.
-            last_summary = str(history[-1].get("summary", ""))
-            expected = str(task.get("expected", ""))
-            ans = expected if (expected and expected.lower() in last_summary.lower()) else last_summary
-            return json.dumps({"action": "EMIT_FINAL",
-                               "answer": ans,
-                               "rationale": "incorporate tool observation"})
+            last_entry = history[-1]
+            last_summary = str(last_entry.get("summary", ""))
+            last_status = str(last_entry.get("status", "success"))
 
-        if self.mode == "recurrent":
-            return json.dumps({"action": "CALL_TOOL",
-                               "tool": task.get("tool", "calculator"),
-                               "arguments": dict(task.get("tool_args", {})),
-                               "rationale": "first step: consult tool"})
+            if self.mode == "reactive":
+                # Reactive arm emits immediately on receiving the first observation,
+                # with no multi-hop reflection or error recovery.
+                expected = str(task.get("expected", ""))
+                ans = expected if (expected and expected.lower() in last_summary.lower() and last_status == "success") else last_summary
+                return json.dumps({
+                    "action": "EMIT_FINAL",
+                    "answer": ans,
+                    "rationale": "reactive single-turn tool completion",
+                })
+
+            if self.mode == "recurrent":
+                # Check for error recovery path
+                fallback = task.get("fallback_step")
+                if last_status != "success" and fallback and len(history) == 1:
+                    return json.dumps({
+                        "action": "CALL_TOOL",
+                        "tool": fallback.get("tool", "file_read"),
+                        "arguments": dict(fallback.get("tool_args", {})),
+                        "rationale": "tool failed; recover by executing fallback step",
+                    })
+
+                # Check for multi-step tasks
+                multi_steps = task.get("multi_steps")
+                if multi_steps and len(history) < len(multi_steps):
+                    next_step = multi_steps[len(history)]
+                    return json.dumps({
+                        "action": "CALL_TOOL",
+                        "tool": next_step.get("tool", "calculator"),
+                        "arguments": dict(next_step.get("tool_args", {})),
+                        "rationale": f"recurrent step {len(history) + 1}: continuing multi-step plan",
+                    })
+
+                # Completed all tool steps: emit final answer
+                expected = str(task.get("expected", ""))
+                ans = expected if (expected and expected.lower() in last_summary.lower()) else last_summary
+                return json.dumps({
+                    "action": "EMIT_FINAL",
+                    "answer": ans,
+                    "rationale": "incorporate tool observation after recurrent verification",
+                })
+
+        if self.mode in ("recurrent", "reactive"):
+            # First step: call tool
+            initial_tool = task.get("tool", "calculator")
+            initial_args = dict(task.get("tool_args", {}))
+            multi_steps = task.get("multi_steps")
+            if multi_steps:
+                initial_tool = multi_steps[0].get("tool", initial_tool)
+                initial_args = dict(multi_steps[0].get("tool_args", initial_args))
+
+            return json.dumps({
+                "action": "CALL_TOOL",
+                "tool": initial_tool,
+                "arguments": initial_args,
+                "rationale": "first step: consult tool",
+            })
 
         # Baseline arm: one-shot answer from parametric knowledge.
-        return json.dumps({"action": "EMIT_FINAL",
-                           "answer": str(task.get("baseline_answer", "")),
-                           "rationale": "one-shot answer, no tools"})
+        return json.dumps({
+            "action": "EMIT_FINAL",
+            "answer": str(task.get("baseline_answer", "")),
+            "rationale": "one-shot answer, no tools",
+        })
 
     def _match(self, goal: str) -> dict | None:
         norm = _normalize(goal)

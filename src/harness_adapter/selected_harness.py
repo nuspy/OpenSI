@@ -11,7 +11,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Callable
 
-from .tool_gateway import ToolGateway, ToolResult
+from .tool_gateway import ToolGateway, ToolResult, ToolProposal
+from .skill_loader import SkillLoader, HermesSkill
+from .mcp_connector import (
+    MCPManifestLoader,
+    MCPManifest,
+    BaseMCPClient,
+    bridge_mcp_tools,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 HERMES_ROOT = ROOT / "external" / "hermes-agent"
@@ -25,6 +32,13 @@ class HarnessAdapter:
         self.gateway = ToolGateway(config)
         self.event_bus = event_bus
         self.hermes_path = HERMES_ROOT
+
+        skills_dir = self.hermes_path / "skills" if self.is_hermes_available() else None
+        self.skills = SkillLoader(skills_dir)
+
+        mcps_dir = self.hermes_path / "optional-mcps" if self.is_hermes_available() else None
+        self.mcps = MCPManifestLoader(mcps_dir)
+
         self._initialize_hermes_tools()
 
     def is_hermes_available(self) -> bool:
@@ -36,6 +50,33 @@ class HarnessAdapter:
         if not self.is_hermes_available():
             return
         # Hermes tools directory is recognized and ready for bridging.
+
+    def load_skills(self) -> dict[str, HermesSkill]:
+        """Discover and return all skills from the harness."""
+        return self.skills.discover_skills()
+
+    def bridge_skill(
+        self,
+        skill_name: str,
+        tier: str = "approval_required",
+        propose_only: bool = True,
+    ) -> ToolProposal | None:
+        """Bridge a specific skill into the gateway."""
+        return self.skills.bridge_to_gateway(skill_name, self.gateway, tier=tier, propose_only=propose_only)
+
+    def load_mcps(self) -> dict[str, MCPManifest]:
+        """Discover and return all MCP catalog entries."""
+        return self.mcps.discover()
+
+    def connect_mcp(
+        self,
+        client: BaseMCPClient,
+        server_name: str = "mcp",
+        tier: str = "approval_required",
+        propose_only: bool = True,
+    ) -> list[ToolProposal | str]:
+        """Bridge tools from an active MCP client into ToolGateway."""
+        return bridge_mcp_tools(client, self.gateway, server_name=server_name, tier=tier, propose_only=propose_only)
 
     def propose_tool(self, name: str, fn: Callable[..., str], description: str = "",
                      tier: str = "approval_required", proposed_by: str = "model"):

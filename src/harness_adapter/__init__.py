@@ -9,5 +9,29 @@ the next cognitive step (Section 15.6). This package exposes
 
 from .tool_gateway import ToolGateway, ToolResult, ToolProposal
 from .selected_harness import HarnessAdapter
+from .skill_loader import SkillLoader, HermesSkill
+from .mcp_connector import (
+    MCPManifest,
+    MCPManifestLoader,
+    BaseMCPClient,
+    MockMCPClient,
+    StdioMCPClient,
+    HttpMCPClient,
+    bridge_mcp_tools,
+)
 
-__all__ = ["ToolGateway", "ToolResult", "ToolProposal", "HarnessAdapter"]
+__all__ = [
+    "ToolGateway",
+    "ToolResult",
+    "ToolProposal",
+    "HarnessAdapter",
+    "SkillLoader",
+    "HermesSkill",
+    "MCPManifest",
+    "MCPManifestLoader",
+    "BaseMCPClient",
+    "MockMCPClient",
+    "StdioMCPClient",
+    "HttpMCPClient",
+    "bridge_mcp_tools",
+]
