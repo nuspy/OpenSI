@@ -70,20 +70,40 @@ def run_evaluation(backend, tasks: list[dict], gateway: ToolGateway) -> dict[str
         if ok_base:
             baseline_correct += 1
 
-        # Condition 2: Recurrent with tool summary in payload
-        msg_recurrent = [
-            {"role": "system", "content": SCHEMA_PROMPT},
-            {"role": "user", "content": json.dumps({
-                "goal": goal,
-                "tool_history": [{"tool": tool_name, "summary": tool_summary}],
-            })},
-        ]
-        out_rec_raw = backend.generate(msg_recurrent)
-        try:
-            dec_rec = parse_decision(out_rec_raw)
-            ans_rec = str(dec_rec.get("answer", dec_rec.get("rationale", ""))).strip()
-        except Exception:
-            ans_rec = str(out_rec_raw).strip()
+        # Condition 2: Recurrent with tool summary in payload (supports follow-up recurrent steps)
+        history_list = [{"tool": tool_name, "status": tool_res.status, "summary": tool_summary}]
+        ans_rec = ""
+        for _ in range(3):
+            msg_recurrent = [
+                {"role": "system", "content": SCHEMA_PROMPT},
+                {"role": "user", "content": json.dumps({
+                    "goal": goal,
+                    "tool_history": history_list,
+                })},
+            ]
+            out_rec_raw = backend.generate(msg_recurrent)
+            try:
+                dec_rec = parse_decision(out_rec_raw)
+            except Exception:
+                ans_rec = str(out_rec_raw).strip()
+                break
+
+            action = dec_rec.get("action")
+            if action == "EMIT_FINAL":
+                ans_rec = str(dec_rec.get("answer", dec_rec.get("rationale", ""))).strip()
+                break
+            elif action == "CALL_TOOL":
+                next_tool = dec_rec.get("tool", "")
+                next_args = dec_rec.get("arguments", {})
+                next_res = gateway.execute(next_tool, next_args)
+                history_list.append({
+                    "tool": next_tool,
+                    "status": next_res.status,
+                    "summary": next_res.summary,
+                })
+            else:
+                ans_rec = str(dec_rec.get("rationale", "")).strip()
+                break
 
         ok_rec = (expected.lower() in ans_rec.lower()) or (ans_rec == expected)
         if ok_rec:
