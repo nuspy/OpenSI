@@ -104,6 +104,22 @@ TESTS: list[dict] = [
             "recurrence."
         ),
     },
+    {
+        "name": "t5_multi_arm_eval",
+        "script": "scripts/run_eval.py",
+        "context": (
+            "Milestone 4: comprehensive evaluation matrix comparing "
+            "Arm A (one-shot baseline), Arm B (reactive single-turn agent), "
+            "and Arm C (OpenSI cognitive recurrence controller)."
+        ),
+        "purpose": "Quantify task success, step efficiency, tool-use overhead, "
+                   "multi-step composition, and error recovery.",
+        "data": "Tasks from configs/prototype.yaml evaluated across all three arms.",
+        "action": (
+            "Verify that Arm C achieves strict superiority on multi-step "
+            "and error-recovery tasks compared to reactive Arm B."
+        ),
+    },
 ]
 
 
