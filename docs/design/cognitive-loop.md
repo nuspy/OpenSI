@@ -39,14 +39,18 @@ The model must answer with one JSON object:
 `EMIT_FINAL` carries `answer`. The controller never executes an action
 that failed schema validation.
 
-## Baseline vs recurrent arms
+## Comparison arms (Milestone 4 Matrix)
 
-- `mode: baseline` — single generation, no tool feedback. Tests
-  whether the model already "knows" the answer.
-- `mode: recurrent` — multi-step loop; tool results are fed back as
-  observations before the final answer.
+- `mode: baseline` (Arm A) — single generation, no tool feedback. Tests
+  whether the model already "knows" the answer parametrically.
+- `mode: reactive` (Arm B) — standard single-turn tool caller. Calls a tool
+  and outputs the observation directly without reflective state or multi-step
+  planning. Fails on multi-step problems and tool failures.
+- `mode: recurrent` (Arm C) — full OpenSI multi-step cognitive loop. Maintains
+  bounded J-Space state, tracks evolving hypotheses, composes multiple tools,
+  and recovers from unexpected tool failures.
 
-The Milestone 4 evaluation compares both arms on identical tasks. The
-third task in `configs/prototype.yaml` (a file whose content the model
-cannot know parametrically) is the discriminating case: the baseline
-arm fails it, the recurrent arm succeeds.
+The Milestone 4 evaluation compares all three arms on identical tasks in
+`configs/prototype.yaml`. The multi-step formula task and the fallback config
+recovery task serve as clear discriminating benchmarks where Arm C achieves
+100% accuracy while Arm B achieves 71.4% and Arm A achieves 28.6%.
