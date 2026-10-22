@@ -12,6 +12,7 @@ from .events import EventBus, Event
 from .policies import PolicyEngine, PolicyConfig, PermissionDecision
 from .tracing import Tracer
 from .controller import CognitiveController, RunOutcome, parse_decision, ParseError
+from .memory import PersistentMemoryStore, MemoryItem
 
 __all__ = [
     "CognitiveState", "StateStore", "new_state",
@@ -19,4 +20,5 @@ __all__ = [
     "PolicyEngine", "PolicyConfig", "PermissionDecision",
     "Tracer",
     "CognitiveController", "RunOutcome", "parse_decision", "ParseError",
+    "PersistentMemoryStore", "MemoryItem",
 ]

@@ -198,6 +198,12 @@ class CognitiveController:
                 "step": state.state_version,
                 "action": action,
             })
+            state.decisions.append({
+                "step": state.state_version,
+                "action": action,
+                "rationale": str(decision.get("rationale", "")),
+                "timestamp": time.time(),
+            })
 
             if self.step_callback is not None:
                 self.step_callback({

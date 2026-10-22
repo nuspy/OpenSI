@@ -34,6 +34,42 @@ def test_state_version_increases(monkeypatch, tmp_path):
     assert state.state_version > v0
 
 
+def test_state_compression_condenses_older_observations():
+    state = new_state("compression goal")
+    for i in range(15):
+        state.recent_observations.append({"kind": "tool_read", "content": f"data_item_{i}"})
+
+    assert len(state.recent_observations) == 15
+    state.compress_state(max_recent=8)
+
+    assert len(state.recent_observations) == 8
+    assert len(state.working_hypotheses) > 0
+    assert "[tool_read] data_item_0" in state.working_hypotheses
+
+
+def test_persistent_memory_store(tmp_path):
+    from cognitive_runtime.memory import PersistentMemoryStore
+
+    mem = PersistentMemoryStore(tmp_path / "memory")
+    item1 = mem.store("project_codename", "Project Phoenix", category="fact", confidence=0.95)
+    assert item1.ref_id.startswith("mem_")
+    assert item1.key == "project_codename"
+
+    item2 = mem.register_skill_ref("python_exec", "Execute safe python scripts", "skills/python_exec")
+    assert item2.category == "skill"
+
+    # Query
+    results = mem.query("phoenix")
+    assert len(results) == 1
+    assert results[0].key == "project_codename"
+
+    # Reload from disk
+    mem2 = PersistentMemoryStore(tmp_path / "memory")
+    reloaded = mem2.get(item1.ref_id)
+    assert reloaded is not None
+    assert reloaded.content == "Project Phoenix"
+
+
 def test_manifest_roundtrip(tmp_path):
     from model_prep import write_manifest, read_manifest
 

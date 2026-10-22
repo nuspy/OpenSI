@@ -22,29 +22,48 @@ MAX_TOOL_HISTORY = 32
 
 @dataclass
 class CognitiveState:
-    """The bounded cognitive state for one goal."""
+    """The bounded cognitive state for one goal (Section 7)."""
 
     session_id: str
     goal: str
     state_version: int = 0
     success_criteria: str = ""
+    working_hypotheses: list[str] = field(default_factory=list)
     open_questions: list[str] = field(default_factory=list)
     plan_summary: str = ""
     recent_observations: list[dict[str, Any]] = field(default_factory=list)
     tool_history: list[dict[str, Any]] = field(default_factory=list)
+    decisions: list[dict[str, Any]] = field(default_factory=list)
+    persistent_memory_refs: list[str] = field(default_factory=list)
     budgets: dict[str, float] = field(default_factory=dict)
     stop_conditions: list[str] = field(default_factory=list)
+    pending_action: dict[str, Any] | None = None
     last_checkpoint: float | None = None
 
     def to_json_dict(self) -> dict[str, Any]:
         return asdict(self)
 
+    def compress_state(self, max_recent: int = MAX_RECENT_OBSERVATIONS) -> None:
+        """Condense older observations into working_hypotheses to bound context growth."""
+        if len(self.recent_observations) > max_recent:
+            older = self.recent_observations[:-max_recent]
+            self.recent_observations = self.recent_observations[-max_recent:]
+            for obs in older:
+                kind = obs.get("kind", "obs")
+                content = str(obs.get("content", ""))[:120]
+                summary_item = f"[{kind}] {content}"
+                if summary_item not in self.working_hypotheses:
+                    self.working_hypotheses.append(summary_item)
+            # Bound working hypotheses as well
+            self.working_hypotheses = self.working_hypotheses[-8:]
+
     def save(self, directory: str | Path) -> Path:
         directory = Path(directory)
         directory.mkdir(parents=True, exist_ok=True)
         self.last_checkpoint = time.time()
-        self.recent_observations = self.recent_observations[-MAX_RECENT_OBSERVATIONS:]
+        self.compress_state(MAX_RECENT_OBSERVATIONS)
         self.tool_history = self.tool_history[-MAX_TOOL_HISTORY:]
+        self.decisions = self.decisions[-16:]
         path = directory / f"{self.session_id}.json"
         with open(path, "w", encoding="utf-8") as fh:
             json.dump(self.to_json_dict(), fh, indent=2, default=str)
@@ -53,7 +72,9 @@ class CognitiveState:
     @classmethod
     def load(cls, directory: str | Path, session_id: str) -> "CognitiveState":
         with open(Path(directory) / f"{session_id}.json", encoding="utf-8") as fh:
-            return cls(**json.load(fh))
+            data = json.load(fh)
+            # Support backwards compatibility if loaded state lacks newer fields
+            return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
 
 class StateStore:
