@@ -37,3 +37,17 @@ next trigger for reconsideration.
   - `test.py` syntax error fixed and 4 calibration probes (`t1` to `t4`) implemented in `scripts/measure/`.
   - `pytest.ini` configured to isolate OpenSI test suites from external submodules.
 - **Next trigger:** GPU availability / launching the local Q4 server for full live benchmark run.
+
+## Entry 3 — 2026-10-22 — Hermes Skills Bridging, MCP Catalog Integration, and Multi-Arm Benchmark Matrix
+
+- **Trigger:** Implementation of passive harness extension capabilities (Section 4, 6C, 8) and expansion of Milestone 4 comparative evaluation.
+- **Decisions & Implementations:**
+  1. **Skill Loading & Persistent Memory:** Implemented `SkillLoader` to dynamically parse `SKILL.md` frontmatter and instructions from `external/hermes-agent/skills/`. Integrated with `PersistentMemoryStore` so discovered skills are cataloged in long-term durable memory (`persistent_memory_refs`) without prompt bloat.
+  2. **MCP Catalog & Client Protocol:** Implemented `MCPManifestLoader` to discover manifests in `external/hermes-agent/optional-mcps/` (Wolfram, Semgrep, etc.). Implemented `MCPClient` abstraction (`MockMCPClient`, `StdioMCPClient`, `HttpMCPClient`) and `bridge_mcp_tools()` enforcing Section 8.1 tool proposal and approval lifecycles.
+  3. **Multi-Arm Evaluation Matrix (Milestone 4):** Expanded `scripts/run_eval.py` to compare 3 distinct arms:
+     - **Arm A (Baseline):** One-shot parametric answer without tools (28.6% accuracy on test corpus).
+     - **Arm B (Reactive):** Single-turn tool caller without cognitive reflection or hypothesis tracking (71.4% accuracy).
+     - **Arm C (Recurrent):** OpenSI multi-step cognitive loop with bounded state, hypothesis tracking, and error recovery (100.0% accuracy).
+     Added multi-step calculation (`formula.txt`) and error recovery (`config.txt` -> `backup_config.txt`) tasks to `data/eval_corpus/`.
+  4. **Integrated Test Suite:** Added `t5_multi_arm_eval` into `test.py` calibration battery. All 43 test items (36 unit/integration + 7 new MCP/skill tests) pass with 0 failures on CPU.
+- **Next trigger:** Launch of local Q4 model server to record live token throughput, latency, and real model metrics.
