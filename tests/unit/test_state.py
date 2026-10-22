@@ -10,7 +10,10 @@ def test_state_serializes_to_json(tmp_path):
     state = new_state("test goal", "criteria")
     path = state.save(tmp_path)
     assert path.exists()
-    loaded = StateStore(tmp_path).load(state.session_id)
+    store = StateStore(tmp_path)
+    assert store.exists(state.session_id) is True
+    assert store.exists("nonexistent_session") is False
+    loaded = store.load(state.session_id)
     assert loaded.goal == state.goal
     assert loaded.success_criteria == state.success_criteria
 

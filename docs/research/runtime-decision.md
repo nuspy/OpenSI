@@ -1,8 +1,8 @@
 # Runtime Decision Record (ADR)
 
-**Revision:** 1
-**Date:** 2026-10-15
-**Status:** Provisional (accepted for Milestones 1-2, revisit at Milestone 4)
+**Revision:** 2
+**Date:** 2026-10-20
+**Status:** Accepted (Milestones 1-4 calibration consolidated; Q4 quantized serving confirmed; LoRA fallback approved for M5)
 
 ## Decision
 

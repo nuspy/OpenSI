@@ -100,13 +100,66 @@ def tool_file_read(arguments: dict[str, Any], sandbox_roots=()) -> str:
     return text.strip()
 
 
+def tool_file_write(arguments: dict[str, Any], sandbox_roots=()) -> str:
+    raw = str(arguments.get("path", ""))
+    content = str(arguments.get("content", ""))
+    norm = raw.replace("\\", "/").strip("/")
+    roots = [r.replace("\\", "/").strip("/") for r in sandbox_roots] or ["data/eval_corpus"]
+    allowed = any(norm.startswith(r + "/") or norm == r for r in roots)
+    if not allowed:
+        raise PermissionError(f"path {raw!r} outside sandbox roots {roots}")
+    target_path = Path(norm)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    target_path.write_text(content, encoding="utf-8")
+    return f"Wrote {len(content)} bytes to {raw}"
+
+
+def tool_web_fetch(arguments: dict[str, Any]) -> str:
+    import urllib.request
+    url = str(arguments.get("url", ""))
+    if not (url.startswith("http://") or url.startswith("https://")):
+        raise ValueError(f"Invalid URL protocol: {url!r}")
+    req = urllib.request.Request(url, headers={"User-Agent": "OpenSI-Harness/0.1"})
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        content = resp.read(2048).decode("utf-8", errors="replace")
+    return content.strip()
+
+
+@dataclass
+class ToolProposal:
+    """A dynamic tool proposed by the model or runtime (Section 8.1)."""
+
+    proposal_id: str
+    name: str
+    description: str
+    tier: str
+    proposed_by: str
+    callable_fn: Callable[..., str] | None = None
+    status: str = "pending"  # pending | approved | rejected
+    rejection_reason: str = ""
+    created_unix: float = field(default_factory=time.time)
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "proposal_id": self.proposal_id,
+            "name": self.name,
+            "description": self.description,
+            "tier": self.tier,
+            "proposed_by": self.proposed_by,
+            "status": self.status,
+            "rejection_reason": self.rejection_reason,
+            "created_unix": self.created_unix,
+        }
+
+
 class SandboxedTool:
     """A registered tool with its name, callable, and permission tier."""
 
-    def __init__(self, name: str, fn: Callable[..., str], tier: str = "auto"):
+    def __init__(self, name: str, fn: Callable[..., str], tier: str = "auto", description: str = ""):
         self.name = name
         self.fn = fn
         self.tier = tier
+        self.description = description
 
     def __call__(self, arguments: dict[str, Any]) -> str:
         return self.fn(arguments)
@@ -120,19 +173,72 @@ class ToolGateway:
         self.sandbox_roots = policy.get("sandbox_roots", ["data/eval_corpus"])
         self.tiers = dict(policy.get("tool_tiers", {}))
         self.timeout_s = float(policy.get("tool_timeout_s", 10))
-        self._registry: dict[str, Any] = {}
+        self._registry: dict[str, SandboxedTool] = {}
+        self._proposals: dict[str, ToolProposal] = {}
         self.register_defaults()
 
     def register_defaults(self) -> None:
-        self.register("calculator", tool_calculator, self.tiers.get("calculator", "auto"))
-        self.register("clock", tool_clock, self.tiers.get("clock", "auto"))
-        self.register("file_read", self._wrap_file_read, self.tiers.get("file_read", "auto"))
+        self.register("calculator", tool_calculator, self.tiers.get("calculator", "auto"),
+                      description="Evaluate arithmetic expressions")
+        self.register("clock", tool_clock, self.tiers.get("clock", "auto"),
+                      description="Get current UTC timestamp")
+        self.register("file_read", self._wrap_file_read, self.tiers.get("file_read", "auto"),
+                      description="Read text file inside sandbox")
+        self.register("file_write", self._wrap_file_write,
+                      self.tiers.get("file_write", "filesystem_write"),
+                      description="Write text file inside sandbox (requires approval)")
+        self.register("web_fetch", tool_web_fetch,
+                      self.tiers.get("web_fetch", "network"),
+                      description="Fetch URL content with bounded size (requires approval)")
 
     def _wrap_file_read(self, arguments):
         return tool_file_read(arguments, self.sandbox_roots)
 
-    def register(self, name: str, fn, tier: str = "auto") -> None:
-        self._registry[name] = SandboxedTool(name, fn, tier)
+    def _wrap_file_write(self, arguments):
+        return tool_file_write(arguments, self.sandbox_roots)
+
+    def register(self, name: str, fn: Callable[..., str], tier: str = "auto", description: str = "") -> None:
+        self._registry[name] = SandboxedTool(name, fn, tier, description)
+
+    def get_tool(self, name: str) -> SandboxedTool | None:
+        return self._registry.get(name)
+
+    def propose_tool(self, name: str, fn: Callable[..., str], description: str = "",
+                     tier: str = "approval_required", proposed_by: str = "model") -> ToolProposal:
+        """Submit a dynamic tool proposal (Section 8.1 lifecycle)."""
+        prop_id = f"prop_{uuid.uuid4().hex[:8]}"
+        proposal = ToolProposal(
+            proposal_id=prop_id,
+            name=name,
+            description=description,
+            tier=tier,
+            proposed_by=proposed_by,
+            callable_fn=fn,
+        )
+        self._proposals[prop_id] = proposal
+        return proposal
+
+    def list_proposals(self, status: str | None = None) -> list[ToolProposal]:
+        if status:
+            return [p for p in self._proposals.values() if p.status == status]
+        return list(self._proposals.values())
+
+    def approve_proposal(self, proposal_id: str) -> bool:
+        """Approve and register a proposed tool."""
+        prop = self._proposals.get(proposal_id)
+        if not prop or prop.status != "pending" or not prop.callable_fn:
+            return False
+        prop.status = "approved"
+        self.register(prop.name, prop.callable_fn, tier=prop.tier, description=prop.description)
+        return True
+
+    def reject_proposal(self, proposal_id: str, reason: str = "") -> bool:
+        prop = self._proposals.get(proposal_id)
+        if not prop or prop.status != "pending":
+            return False
+        prop.status = "rejected"
+        prop.rejection_reason = reason
+        return True
 
     def list_tools(self) -> list[str]:
         return sorted(self._registry)

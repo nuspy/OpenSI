@@ -22,3 +22,18 @@ next trigger for reconsideration.
 - **Impact on tests:** all integration tests must pass CPU-only.
 - **Next trigger:** first real-model measurement run, or Milestone 5
   start.
+
+## Entry 2 — 2026-10-20 — Alignment on Model Quantization, Harness, and Latent Recurrence
+
+- **Trigger:** review of handoff, bug resolution, and architectural clarification with user.
+- **Decisions & Evidence:**
+  1. **Quantization Level:** Confirmed **Q4** (GGUF Q4_K_M for llama.cpp / quantized serving) as the experimental target to guarantee fit and context headroom on the 32 GB RTX 5090 host.
+  2. **Harness Integration:** Cloned `NousResearch/hermes-agent` to `external/hermes-agent` to serve as the reference upstream harness for adapter integration.
+  3. **Latent Recurrence Fallback (Milestone 5):** Confirmed that if zero-shot unadapted forward-pass recurrence fails (due to numerical drift or MoE router disruption), a lightweight adapter (e.g., LoRA or a compact recurrent projection layer) is approved as an architectural contingency rather than treating zero-shot as a strict blocker.
+  4. **GPU Status & Calibration Suite:** GPU currently occupied with external tasks. Calibration and measurement suites (`scripts/measure/` and `test.py`) consolidated to run dual-mode: 100% deterministic on CPU (mock), automatically switching to live inference when the server endpoint is active.
+- **Impact on code & tests:**
+  - `src/cognitive_runtime/state.py` bug in `StateStore.exists` resolved.
+  - `src/model_prep/inspect.py` hub lookup bug resolved.
+  - `test.py` syntax error fixed and 4 calibration probes (`t1` to `t4`) implemented in `scripts/measure/`.
+  - `pytest.ini` configured to isolate OpenSI test suites from external submodules.
+- **Next trigger:** GPU availability / launching the local Q4 server for full live benchmark run.

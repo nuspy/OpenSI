@@ -7,6 +7,7 @@ the next cognitive step (Section 15.6). This package exposes
 1-2 prototype.
 """
 
-from .tool_gateway import ToolGateway, ToolResult
+from .tool_gateway import ToolGateway, ToolResult, ToolProposal
+from .selected_harness import HarnessAdapter
 
-__all__ = ["ToolGateway", "ToolResult"]
+__all__ = ["ToolGateway", "ToolResult", "ToolProposal", "HarnessAdapter"]

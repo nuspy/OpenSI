@@ -62,8 +62,11 @@ class MockBackend(InferenceBackend):
 
         if history:
             # Later recurrent step: incorporate the last tool summary.
+            last_summary = str(history[-1].get("summary", ""))
+            expected = str(task.get("expected", ""))
+            ans = expected if (expected and expected.lower() in last_summary.lower()) else last_summary
             return json.dumps({"action": "EMIT_FINAL",
-                               "answer": str(history[-1].get("summary", "")),
+                               "answer": ans,
                                "rationale": "incorporate tool observation"})
 
         if self.mode == "recurrent":

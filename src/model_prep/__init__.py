@@ -8,5 +8,15 @@ capability (handoff Sections 6.B and 15).
 
 from .inspect import inspect_model, ModelInspection
 from .manifest import write_manifest, read_manifest
+from .validate import validate_model, ValidationResult
+from .package import package_config
 
-__all__ = ["inspect_model", "ModelInspection", "write_manifest", "read_manifest"]
+__all__ = [
+    "inspect_model",
+    "ModelInspection",
+    "write_manifest",
+    "read_manifest",
+    "validate_model",
+    "ValidationResult",
+    "package_config",
+]

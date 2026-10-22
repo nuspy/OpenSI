@@ -103,13 +103,19 @@ class CognitiveController:
 
     def __init__(self, backend, gateway, config: dict[str, Any],
                  trace_dir: str = "data/traces",
-                 approval_handler: Callable[[dict], bool] | None = None):
+                 approval_handler: Callable[[dict], bool] | None = None,
+                 ask_user_handler: Callable[[str], str] | None = None,
+                 step_callback: Callable[[dict], None] | None = None,
+                 store: StateStore | None = None):
         self.config = config
         self.backend = backend
         self.gateway = gateway
         self.events = EventBus()
         self.tracer = Tracer(trace_dir)
         self.approval_handler = approval_handler
+        self.ask_user_handler = ask_user_handler
+        self.step_callback = step_callback
+        self.store = store
         self.mode = config.get("mode", "recurrent")
 
         policy = config.get("policy", {})
@@ -170,7 +176,11 @@ class CognitiveController:
                 stop_reason = "budget_time"
                 break
 
-            self._flush_events(state)
+            interrupted = self._flush_events(state)
+            if interrupted:
+                stop_reason = "interrupted"
+                break
+
             text = self.backend.generate(self._messages(state))
             try:
                 decision = parse_decision(text)
@@ -188,6 +198,14 @@ class CognitiveController:
                 "step": state.state_version,
                 "action": action,
             })
+
+            if self.step_callback is not None:
+                self.step_callback({
+                    "step": state.state_version,
+                    "action": action,
+                    "decision": decision,
+                    "state": state,
+                })
 
             if action == "EMIT_FINAL":
                 final_answer = str(decision.get("answer", ""))
@@ -225,7 +243,20 @@ class CognitiveController:
                     "duration_s": result.duration_s,
                 })
                 internal_streak = 0
-            elif action in ("WAIT_FOR_EVENT", "ASK_USER"):
+            elif action == "ASK_USER":
+                question = str(decision.get("question") or decision.get("rationale") or "Clarification needed")
+                if self.ask_user_handler is not None:
+                    user_reply = self.ask_user_handler(question)
+                    state.recent_observations.append({
+                        "kind": "user_reply",
+                        "question": question,
+                        "content": user_reply,
+                    })
+                    internal_streak = 0
+                else:
+                    stop_reason = "waiting"
+                    break
+            elif action == "WAIT_FOR_EVENT":
                 stop_reason = "waiting"
                 break
             elif action == "CONTINUE_INTERNAL":
@@ -235,8 +266,12 @@ class CognitiveController:
                 internal_streak += 1
 
             state.state_version += 1
+            if self.store is not None:
+                self.store.save(state)
 
         state.stop_conditions.append(stop_reason)
+        if self.store is not None:
+            self.store.save(state)
         return RunOutcome(state.session_id, final_answer, stop_reason,
                          state.state_version,
                          len(state.tool_history) - initial_tools,
@@ -251,13 +286,17 @@ class CognitiveController:
         return str(obj.get("answer", obj.get("rationale", ""))), "final"
 
     # --------------------------------------------------------------------
-    def _flush_events(self, state: CognitiveState) -> None:
+    def _flush_events(self, state: CognitiveState) -> bool:
+        interrupted = False
         while True:
             ev = self.events.pop()
             if ev is None:
                 break
+            if ev.kind == "interruption":
+                interrupted = True
             state.recent_observations.append({"kind": ev.kind,
                                             "content": str(ev.payload)})
+        return interrupted
 
     def _messages(self, state: CognitiveState) -> list[dict[str, Any]]:
         payload: dict[str, Any] = {"goal": state.goal}

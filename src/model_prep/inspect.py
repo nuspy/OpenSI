@@ -81,7 +81,7 @@ def _from_hub(model_id: str) -> ModelInspection:
         data = json.loads(resp.read().decode("utf-8"))
     config = data.get("config", {}) or {}
     return ModelInspection(
-        model_ref,
+        model_id,
         "hub",
         architecture=(config.get("architectures") or [None])[0],
         model_type=config.get("model_type"),

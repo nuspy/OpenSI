@@ -32,6 +32,12 @@ def _lazy_register() -> None:
         AVAILABLE.setdefault("transformers", TransformersBackend)
     except Exception:  # pragma: no cover
         pass
+    try:
+        from .transformers_recurrent_backend import TransformersRecurrentBackend
+
+        AVAILABLE.setdefault("transformers_recurrent", TransformersRecurrentBackend)
+    except Exception:  # pragma: no cover
+        pass
 
 
 def get_backend(name: str, config: dict) -> InferenceBackend:

@@ -137,8 +137,7 @@ def main() -> None:
             fh.write(f"B. purpose: {test['purpose']}\n")
             fh.write(f"C. script:  {test['script']}\n")
             fh.write(f"D. data:    {test['data']}\n")
-            fh.write(f"E. action:  {test['action']\n}" if False else
-                     f"E. action:  {test['action']}\n")
+            fh.write(f"E. action:  {test['action']}\n")
             # 2. launch once
             rc, out = run_once(test["script"])
             # 3. append results

@@ -70,7 +70,7 @@ class StateStore:
         return CognitiveState.load(self.directory, session_id)
 
     def exists(self, session_id: str) -> bool:
-        return (self.directory / f"{self.session_id}.json").exists()
+        return (self.directory / f"{session_id}.json").exists()
 
 
 def new_state(goal: str, success_criteria: str = "",
