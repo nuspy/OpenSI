@@ -4,7 +4,8 @@ from pathlib import Path
 from harness_adapter import (
     HarnessAdapter,
     SkillLoader,
-    HermesSkill,
+    Skill,
+    TaDaMooCatalog,
     MCPManifestLoader,
     MCPManifest,
     MockMCPClient,
@@ -27,8 +28,7 @@ author: OpenSI Team
 license: Apache-2.0
 platforms: [windows, linux]
 metadata:
-  hermes:
-    tags: [Test, Prototype]
+  tags: [Test, Prototype]
 ---
 
 # Sample Skill Documentation
@@ -49,13 +49,11 @@ Detailed instructions go here.
     assert "# Sample Skill Documentation" in skill.instructions
 
 
-def test_discover_hermes_skills_and_memory_registration(tmp_path):
-    loader = SkillLoader()  # defaults to external/hermes-agent/skills
+def test_discover_tadamoo_skills_and_memory_registration(tmp_path, tadamoo_data):
+    loader = SkillLoader(TaDaMooCatalog(tadamoo_data).skill_dirs())
     skills = loader.discover_skills()
 
-    assert len(skills) > 0
-    # e.g. arxiv skill should exist
-    assert "arxiv" in skills
+    assert set(skills) == {"arxiv", "daily-report"}
     arxiv = skills["arxiv"]
     assert "arXiv" in arxiv.description or "arxiv" in arxiv.description.lower()
 
@@ -68,8 +66,8 @@ def test_discover_hermes_skills_and_memory_registration(tmp_path):
     assert mem_item.key == "skill:arxiv"
 
 
-def test_bridge_skill_to_gateway(tmp_path):
-    loader = SkillLoader()
+def test_bridge_skill_to_gateway(tmp_path, tadamoo_data):
+    loader = SkillLoader(TaDaMooCatalog(tadamoo_data).skill_dirs())
     gateway = ToolGateway({})
 
     # 1. Propose only (default for security)
@@ -92,18 +90,20 @@ def test_bridge_skill_to_gateway(tmp_path):
     assert "Skill: arxiv" in res_after.summary
 
 
-def test_parse_mcp_manifest():
-    loader = MCPManifestLoader()
-    manifests = loader.discover()
-
-    assert len(manifests) > 0
-    # wolfram should exist in optional-mcps
+def test_parse_mcp_manifest(tmp_path):
+    folder = tmp_path / "catalog" / "wolfram"
+    folder.mkdir(parents=True)
+    (folder / "manifest.yaml").write_text(
+        "name: wolfram\ndescription: Wolfram\ntransport:\n  type: http\n  url: https://agenttools.wolfram.com/mcp\n"
+        "suggest:\n  keywords: [wolfram, math]\n", encoding="utf-8")
+    loader = MCPManifestLoader(tmp_path / "catalog")
+    assert len(loader.discover()) == 1
     wolfram = loader.get_manifest("wolfram")
     assert wolfram is not None
-    assert wolfram.name == "wolfram"
     assert wolfram.transport_type == "http"
     assert wolfram.url == "https://agenttools.wolfram.com/mcp"
     assert "wolfram" in wolfram.keywords
+    assert MCPManifestLoader().discover() == {}
 
 
 def test_mock_mcp_client_and_bridging():
@@ -140,15 +140,15 @@ def test_mock_mcp_client_and_bridging():
     assert res2.summary == "52"
 
 
-def test_harness_adapter_mcp_and_skills_integration():
-    adapter = HarnessAdapter({})
-    assert adapter.is_hermes_available() is True
+def test_harness_adapter_mcp_and_skills_integration(tadamoo_data):
+    adapter = HarnessAdapter({}, catalog=TaDaMooCatalog(tadamoo_data))
+    assert adapter.is_tadamoo_available() is True
 
     skills = adapter.load_skills()
     assert "arxiv" in skills
 
     mcps = adapter.load_mcps()
-    assert "wolfram" in mcps
+    assert set(mcps) == {"stocktwits", "wolfram"}
 
     mock_client = MockMCPClient({
         "ping": {

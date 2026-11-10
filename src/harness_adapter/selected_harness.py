@@ -1,18 +1,21 @@
-"""Selected harness adapter: Hermes Agent integration (Milestone 1/M0).
+"""Selected harness adapter: TaDaMoo integration.
 
-Adapts the upstream Hermes Agent environment (cloned in external/hermes-agent)
-to act as a passive tool, event, and execution substrate for the OpenSI
-cognitive controller. The controller retains ownership of planning and reasoning;
-the harness performs execution, approval checks, and event delivery.
+Adapts TaDaMoo's skills and MCP servers to act as a passive tool, event, and
+execution substrate for the OpenSI cognitive controller. The controller
+retains ownership of planning and reasoning; the harness performs execution,
+approval checks, and event delivery.
+
+OpenSI reads what TaDaMoo has installed from its user data folder
+(`tadamoo_catalog`) and imports none of its code.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any, Callable
 
 from .tool_gateway import ToolGateway, ToolResult, ToolProposal
-from .skill_loader import SkillLoader, HermesSkill
+from .skill_loader import SkillLoader, Skill
+from .tadamoo_catalog import TaDaMooCatalog
 from .mcp_connector import (
     MCPManifestLoader,
     MCPManifest,
@@ -20,38 +23,25 @@ from .mcp_connector import (
     bridge_mcp_tools,
 )
 
-ROOT = Path(__file__).resolve().parents[2]
-HERMES_ROOT = ROOT / "external" / "hermes-agent"
-
 
 class HarnessAdapter:
-    """Passive harness adapter connecting OpenSI to Hermes Agent tool capabilities."""
+    """Passive harness adapter connecting OpenSI to TaDaMoo's tool capabilities."""
 
-    def __init__(self, config: dict[str, Any], event_bus=None):
+    def __init__(self, config: dict[str, Any], event_bus=None, catalog: TaDaMooCatalog | None = None):
         self.config = config
         self.gateway = ToolGateway(config)
         self.event_bus = event_bus
-        self.hermes_path = HERMES_ROOT
 
-        skills_dir = self.hermes_path / "skills" if self.is_hermes_available() else None
-        self.skills = SkillLoader(skills_dir)
+        harness_cfg = (config or {}).get("harness") or {}
+        self.catalog = catalog or TaDaMooCatalog(harness_cfg.get("tadamoo_data"))
+        self.skills = SkillLoader(self.catalog.skill_dirs())
+        self.mcps = MCPManifestLoader(harness_cfg.get("mcp_catalog"))
 
-        mcps_dir = self.hermes_path / "optional-mcps" if self.is_hermes_available() else None
-        self.mcps = MCPManifestLoader(mcps_dir)
+    def is_tadamoo_available(self) -> bool:
+        """Check if a TaDaMoo user data folder with a catalog is present on disk."""
+        return self.catalog.is_available()
 
-        self._initialize_hermes_tools()
-
-    def is_hermes_available(self) -> bool:
-        """Check if the external Hermes Agent repo is present on disk."""
-        return self.hermes_path.is_dir() and (self.hermes_path / "tools").is_dir()
-
-    def _initialize_hermes_tools(self) -> None:
-        """Register custom or bridged Hermes tools into the ToolGateway."""
-        if not self.is_hermes_available():
-            return
-        # Hermes tools directory is recognized and ready for bridging.
-
-    def load_skills(self) -> dict[str, HermesSkill]:
+    def load_skills(self) -> dict[str, Skill]:
         """Discover and return all skills from the harness."""
         return self.skills.discover_skills()
 
@@ -65,8 +55,8 @@ class HarnessAdapter:
         return self.skills.bridge_to_gateway(skill_name, self.gateway, tier=tier, propose_only=propose_only)
 
     def load_mcps(self) -> dict[str, MCPManifest]:
-        """Discover and return all MCP catalog entries."""
-        return self.mcps.discover()
+        """Discover and return all MCP catalog entries: TaDaMoo's installed servers, then any manifest directory."""
+        return {**self.catalog.mcp_manifests(), **self.mcps.discover()}
 
     def connect_mcp(
         self,

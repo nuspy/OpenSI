@@ -1,9 +1,9 @@
-"""Skill loader for Hermes Agent skills (Section 4, 6C, and 8 of the handoff).
+"""Skill loader for agentskills.io `SKILL.md` skills (Section 4, 6C, and 8 of the handoff).
 
-Discovers, parses, and adapts skills from `external/hermes-agent/skills/`
-(or custom skill directories). Each skill provides a `SKILL.md` with YAML
-frontmatter, human-readable instructions, and optional helper scripts in
-`scripts/`.
+Discovers, parses, and adapts skills from one or more skill directories, in
+practice TaDaMoo's (see `tadamoo_catalog`). Each skill provides a `SKILL.md`
+with YAML frontmatter, human-readable instructions, and optional helper
+scripts in `scripts/`.
 
 Skills can be:
 1. Registered into `PersistentMemoryStore` so the cognitive controller can
@@ -25,12 +25,9 @@ import yaml
 
 from .tool_gateway import ToolGateway, ToolProposal
 
-DEFAULT_HERMES_SKILLS_DIR = Path(__file__).resolve().parents[2] / "external" / "hermes-agent" / "skills"
-
-
 @dataclass
-class HermesSkill:
-    """Parsed representation of a Hermes skill."""
+class Skill:
+    """Parsed representation of a skill."""
 
     name: str
     description: str
@@ -62,11 +59,15 @@ class HermesSkill:
 class SkillLoader:
     """Discovers, parses, and loads skills from directory hierarchies."""
 
-    def __init__(self, skills_dir: str | Path | None = None):
-        self.skills_dir = Path(skills_dir) if skills_dir else DEFAULT_HERMES_SKILLS_DIR
-        self._skills: dict[str, HermesSkill] = {}
+    def __init__(self, skills_dirs: str | Path | list[str | Path] | None = None):
+        if skills_dirs is None:
+            skills_dirs = []
+        elif isinstance(skills_dirs, (str, Path)):
+            skills_dirs = [skills_dirs]
+        self.skills_dirs = [Path(d) for d in skills_dirs]
+        self._skills: dict[str, Skill] = {}
 
-    def parse_skill_markdown(self, skill_path: Path) -> HermesSkill | None:
+    def parse_skill_markdown(self, skill_path: Path) -> Skill | None:
         """Parse a SKILL.md file with YAML frontmatter delimited by `---`."""
         if not skill_path.is_file():
             return None
@@ -105,8 +106,7 @@ class SkillLoader:
         license_str = str(meta.get("license") or "")
         platforms = list(meta.get("platforms") or [])
 
-        hermes_meta = meta.get("metadata", {}).get("hermes", {})
-        tags = list(hermes_meta.get("tags") or meta.get("tags") or [])
+        tags = list((meta.get("metadata") or {}).get("tags") or meta.get("tags") or [])
 
         skill_dir = skill_path.parent
         scripts: dict[str, Path] = {}
@@ -116,7 +116,7 @@ class SkillLoader:
                 if script_file.is_file():
                     scripts[script_file.name] = script_file
 
-        return HermesSkill(
+        return Skill(
             name=name,
             description=description,
             version=version,
@@ -130,26 +130,26 @@ class SkillLoader:
             raw_metadata=meta,
         )
 
-    def discover_skills(self) -> dict[str, HermesSkill]:
-        """Scan skills_dir recursively for SKILL.md and populate registry."""
+    def discover_skills(self) -> dict[str, Skill]:
+        """Scan the skill directories recursively for SKILL.md; the first skill of a name wins."""
         self._skills.clear()
-        if not self.skills_dir.is_dir():
-            return self._skills
-
-        for skill_file in self.skills_dir.rglob("SKILL.md"):
-            skill = self.parse_skill_markdown(skill_file)
-            if skill:
-                self._skills[skill.name] = skill
+        for base in self.skills_dirs:
+            if not base.is_dir():
+                continue
+            for skill_file in sorted(base.rglob("SKILL.md")):
+                skill = self.parse_skill_markdown(skill_file)
+                if skill and skill.name not in self._skills:
+                    self._skills[skill.name] = skill
 
         return self._skills
 
-    def get_skill(self, name: str) -> HermesSkill | None:
+    def get_skill(self, name: str) -> Skill | None:
         """Lookup a skill by name, discovering on first access if empty."""
         if not self._skills:
             self.discover_skills()
         return self._skills.get(name)
 
-    def register_with_memory(self, skill: HermesSkill, memory_store: Any) -> Any:
+    def register_with_memory(self, skill: Skill, memory_store: Any) -> Any:
         """Register a discovered skill into PersistentMemoryStore."""
         return memory_store.register_skill_ref(
             skill_name=skill.name,

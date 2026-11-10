@@ -1,11 +1,11 @@
-"""Unit tests for HarnessAdapter (Hermes Agent passive integration)."""
+"""Unit tests for HarnessAdapter (TaDaMoo passive integration)."""
 
 import pytest
-from harness_adapter import HarnessAdapter
+from harness_adapter import HarnessAdapter, TaDaMooCatalog
 from cognitive_runtime.events import EventBus
 
 
-def test_harness_adapter_initialization():
+def test_harness_adapter_initialization(tadamoo_data):
     cfg = {
         "policy": {
             "sandbox_roots": ["data/eval_corpus"],
@@ -13,9 +13,9 @@ def test_harness_adapter_initialization():
         }
     }
     events = EventBus()
-    adapter = HarnessAdapter(cfg, event_bus=events)
+    adapter = HarnessAdapter(cfg, event_bus=events, catalog=TaDaMooCatalog(tadamoo_data))
 
-    assert adapter.is_hermes_available() is True
+    assert adapter.is_tadamoo_available() is True
     assert "calculator" in adapter.list_tools()
     assert "clock" in adapter.list_tools()
     assert "file_read" in adapter.list_tools()
@@ -84,3 +84,17 @@ def test_file_write_sandboxing(tmp_path):
     res_bad = adapter.execute_tool("file_write", {"path": str(forbidden), "content": "hack"})
     assert res_bad.status == "failure"
     assert "PermissionError" in res_bad.summary
+
+
+def test_without_a_tadamoo_data_folder_the_adapter_still_works(tmp_path):
+    adapter = HarnessAdapter({}, catalog=TaDaMooCatalog(tmp_path / "missing"))
+    assert adapter.is_tadamoo_available() is False
+    assert adapter.load_skills() == {}
+    assert adapter.load_mcps() == {}
+    assert adapter.execute_tool("calculator", {"expression": "1 + 1"}).summary == "2"
+
+
+def test_the_data_folder_can_come_from_the_config(tadamoo_data):
+    adapter = HarnessAdapter({"harness": {"tadamoo_data": str(tadamoo_data)}})
+    assert adapter.is_tadamoo_available() is True
+    assert set(adapter.load_skills()) == {"arxiv", "daily-report"}

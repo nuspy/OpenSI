@@ -2,7 +2,7 @@
 
 Provides:
 1. `MCPManifestLoader`: Parses MCP manifest files (`manifest.yaml`) from
-   `external/hermes-agent/optional-mcps/` or user MCP directories.
+   a directory of manifests (the TaDaMoo servers come from `tadamoo_catalog`).
 2. `MCPClient`: Pluggable MCP client interface supporting:
    - `MockMCPClient`: Deterministic mock client for offline tests and CI.
    - `StdioMCPClient`: JSON-RPC 2.0 communication over standard I/O subprocesses.
@@ -24,9 +24,6 @@ from typing import Any, Callable
 import yaml
 
 from .tool_gateway import ToolGateway, ToolProposal
-
-DEFAULT_HERMES_MCPS_DIR = Path(__file__).resolve().parents[2] / "external" / "hermes-agent" / "optional-mcps"
-
 
 @dataclass
 class MCPManifest:
@@ -63,7 +60,7 @@ class MCPManifestLoader:
     """Discovers and parses MCP manifests from catalog directories."""
 
     def __init__(self, catalog_dir: str | Path | None = None):
-        self.catalog_dir = Path(catalog_dir) if catalog_dir else DEFAULT_HERMES_MCPS_DIR
+        self.catalog_dir = Path(catalog_dir) if catalog_dir else None
         self._manifests: dict[str, MCPManifest] = {}
 
     def parse_manifest_file(self, manifest_path: Path) -> MCPManifest | None:
@@ -112,7 +109,7 @@ class MCPManifestLoader:
 
     def discover(self) -> dict[str, MCPManifest]:
         self._manifests.clear()
-        if not self.catalog_dir.is_dir():
+        if self.catalog_dir is None or not self.catalog_dir.is_dir():
             return self._manifests
 
         for manifest_file in self.catalog_dir.rglob("manifest.yaml"):

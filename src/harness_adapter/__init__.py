@@ -9,7 +9,8 @@ the next cognitive step (Section 15.6). This package exposes
 
 from .tool_gateway import ToolGateway, ToolResult, ToolProposal
 from .selected_harness import HarnessAdapter
-from .skill_loader import SkillLoader, HermesSkill
+from .skill_loader import SkillLoader, Skill
+from .tadamoo_catalog import TaDaMooCatalog
 from .mcp_connector import (
     MCPManifest,
     MCPManifestLoader,
@@ -26,7 +27,8 @@ __all__ = [
     "ToolProposal",
     "HarnessAdapter",
     "SkillLoader",
-    "HermesSkill",
+    "Skill",
+    "TaDaMooCatalog",
     "MCPManifest",
     "MCPManifestLoader",
     "BaseMCPClient",

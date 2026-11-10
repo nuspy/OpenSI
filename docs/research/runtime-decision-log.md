@@ -51,3 +51,16 @@ next trigger for reconsideration.
      Added multi-step calculation (`formula.txt`) and error recovery (`config.txt` -> `backup_config.txt`) tasks to `data/eval_corpus/`.
   4. **Integrated Test Suite:** Added `t5_multi_arm_eval` into `test.py` calibration battery. All 43 test items (36 unit/integration + 7 new MCP/skill tests) pass with 0 failures on CPU.
 - **Next trigger:** Launch of local Q4 model server to record live token throughput, latency, and real model metrics.
+
+
+## Entry 4 — 2026-11-10 — The harness is TaDaMoo
+
+- **Trigger:** the reference harness was a Hermes Agent checkout in `external/hermes-agent`, ignored by Git, not pinned and not
+  declared, so a fresh clone had no skills or MCP catalog and the tests that expected them failed.
+- **Decision:** the owner's own harness, TaDaMoo, replaces it. OpenSI reads TaDaMoo's user data folder
+  (`capabilities/skills`, `capabilities/installed.json`) through `harness_adapter/tadamoo_catalog.py` and imports none of its code.
+- **Changes:** `HarnessAdapter(config, event_bus, catalog)` with `is_tadamoo_available()`; `HermesSkill` is `Skill`; skill tags
+  come from `metadata.tags` or `tags`; `SkillLoader` takes a list of folders; `MCPManifestLoader` has no default folder.
+  The tests build a small fake TaDaMoo data folder and need no checkout.
+- **Not done:** TaDaMoo's personal skills (`skill.json` and `skill.py`) are not read; an MCP server is only listed, started by
+  the existing MCP clients when a run connects to it; the entries above (1 to 3) describe the Hermes setup as it was.

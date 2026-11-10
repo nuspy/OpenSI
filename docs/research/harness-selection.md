@@ -2,7 +2,7 @@
 
 **Date:** 15 October 2026
 **Scope:** Milestone 0 of the Cognitive Recurrence Handoff (Section 4)
-**Status:** Provisional. Live API evidence collected 2026-10-15; no deep fork performed.
+**Status:** Superseded: the harness is TaDaMoo (see the decision log, entry 4). Provisional at the time. Live API evidence collected 2026-10-15; no deep fork performed.
 
 ## What was evaluated
 
