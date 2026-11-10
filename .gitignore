@@ -6,3 +6,7 @@ __pycache__/
 data/traces/
 data/sessions/
 external/hermes-agent/
+
+external/
+*.pyc
+results.txt
