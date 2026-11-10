@@ -27,7 +27,7 @@ python -m venv .venv
 .venv\Scripts\python -m pytest
 ```
 
-The tests use the mock backend; the Transformers and OpenAI-compatible backends need their own dependencies and a model.
+The runtime tests use the mock backend. Running the Transformers or OpenAI-compatible backends for real needs their own dependencies and a model.
 
 ## Status
 
